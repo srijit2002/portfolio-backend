@@ -38,22 +38,31 @@ func insertProject(project *models.Project) {
 	fmt.Print("project inserted successfully------\n", inserted)
 }
 
-// func updateProject(movieId string) {
-// 	oid,err:=primitive.ObjectIDFromHex(movieId)
-// 	if err!=nil{
-// 		panic(err)
-// 	}
-// filter:=bson.M{"_id":oid}
-// update:=bson.M{"$set":bson.M{""}}
-// }
-
-func deleteProject(movieId string) {
+func updateProject(movieId string, project models.Project) *mongo.UpdateResult {
 	oid, err := primitive.ObjectIDFromHex(movieId)
 	if err != nil {
 		panic(err)
 	}
 	filter := bson.M{"_id": oid}
-	Collection.DeleteOne(context.Background(), filter)
+	update := bson.M{"$set": project}
+	updated, err := Collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		panic(err)
+	}
+	return updated
+}
+
+func deleteProject(movieId string) *mongo.DeleteResult {
+	oid, err := primitive.ObjectIDFromHex(movieId)
+	if err != nil {
+		panic(err)
+	}
+	filter := bson.M{"_id": oid}
+	deletedDoc, err := Collection.DeleteOne(context.Background(), filter)
+	if err != nil {
+		panic(err)
+	}
+	return deletedDoc
 }
 func getAllProjects() []bson.M {
 	cur, err := Collection.Find(context.Background(), bson.M{})
@@ -74,25 +83,35 @@ func getAllProjects() []bson.M {
 }
 
 func GetAllProjects(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+	w.Header().Set("Content-Type", "application/json")
 	allProjects := getAllProjects()
 	json.NewEncoder(w).Encode(allProjects)
 }
 
-func CreateProject(w http.ResponseWriter, r *http.Request){
-	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+func CreateProject(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Allow-Control-Allow-Methods", "POST")
 	var project models.Project
-	_=json.NewDecoder(r.Body).Decode(&project)
+	_ = json.NewDecoder(r.Body).Decode(&project)
 	insertProject(&project)
 	json.NewEncoder(w).Encode(project)
 }
 
-func DeleteProject(w http.ResponseWriter, r *http.Request){
+func DeleteProject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
 	w.Header().Set("Allow-Control-Allow-Methods", "DELETE")
-
-	params:=mux.Vars(r)
+	params := mux.Vars(r)
 	deleteProject(params["id"])
+	json.NewEncoder(w).Encode(params["id"])
+}
+
+func UpdateProject(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Allow-Control-Allow-Methods", "PUT")
+
+	params := mux.Vars(r)
+	var project models.Project
+	_ = json.NewDecoder(r.Body).Decode(&project)
+	updateProject(params["id"], project)
 	json.NewEncoder(w).Encode(params["id"])
 }
